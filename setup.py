@@ -6,7 +6,7 @@ with open('README.md') as f:
     LONG_DESCRIPTION = f.read()
 
 setup(name='pipelinewise',
-      version='0.27.0',
+      version='0.28.0',
       description='PipelineWise',
       long_description=LONG_DESCRIPTION,
       long_description_content_type='text/markdown',
@@ -23,7 +23,7 @@ setup(name='pipelinewise',
           'ansible==2.7.16',
           'Jinja2==2.11.2',
           'joblib==0.16.0',
-          'PyMySQL==0.7.11',
+          'PyMySQL==1.0.1',
           'psycopg2-binary==2.8.5',
           'snowflake-connector-python==2.3.6',
           'pipelinewise-singer-python==1.*',
