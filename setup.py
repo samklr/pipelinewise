@@ -6,7 +6,7 @@ with open('README.md') as f:
     LONG_DESCRIPTION = f.read()
 
 setup(name='pipelinewise',
-      version='0.32.0',
+      version='0.32.1',
       description='PipelineWise',
       long_description=LONG_DESCRIPTION,
       long_description_content_type='text/markdown',
@@ -20,7 +20,7 @@ setup(name='pipelinewise',
           'argparse==1.4.0',
           'tabulate==0.8.9',
           'PyYAML==5.4.1',
-          'ansible==2.7.16',
+          'ansible==3.2.0',
           'Jinja2==2.11.3',
           'joblib==1.0.0',
           'PyMySQL==0.7.11',
