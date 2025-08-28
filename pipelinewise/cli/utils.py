@@ -12,9 +12,9 @@ import string
 import sys
 import tempfile
 import warnings
-
 import jsonschema
 import yaml
+import shutil
 
 from io import StringIO
 from datetime import date, datetime
@@ -23,11 +23,12 @@ from ansible.errors import AnsibleError
 from ansible.module_utils._text import to_text
 from ansible.module_utils.common._collections_compat import Mapping
 from ansible.parsing.dataloader import DataLoader
-from ansible.parsing.vault import (VaultLib, get_file_vault_secret, is_encrypted_file)
+from ansible.parsing.vault import VaultLib, get_file_vault_secret, is_encrypted_file
 from ansible.parsing.yaml.loader import AnsibleLoader
-from ansible.parsing.yaml.objects import AnsibleVaultEncryptedUnicode
+from ansible.parsing.yaml.objects import AnsibleMapping, AnsibleVaultEncryptedUnicode
 
 from . import tap_properties
+from .errors import InvalidConfigException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ def is_json_file(path):
     """
     try:
         if os.path.isfile(path):
-            with open(path) as jsonfile:
+            with open(path, encoding='utf-8') as jsonfile:
                 if json.load(jsonfile):
                     return True
         return False
@@ -89,7 +90,7 @@ def load_json(path):
     try:
         LOGGER.debug('Parsing file at %s', path)
         if os.path.isfile(path):
-            with open(path) as jsonfile:
+            with open(path, encoding='utf-8') as jsonfile:
                 return json.load(jsonfile)
         else:
             LOGGER.debug('No file at %s', path)
@@ -115,8 +116,10 @@ def save_json(data, path):
     """
     try:
         LOGGER.debug('Saving JSON %s', path)
-        with open(path, 'w') as jsonfile:
-            return json.dump(data, jsonfile, cls=AnsibleJSONEncoder, indent=4, sort_keys=True)
+        with open(path, 'w', encoding='utf-8') as jsonfile:
+            return json.dump(
+                data, jsonfile, cls=AnsibleJSONEncoder, indent=4, sort_keys=True
+            )
     except Exception as exc:
         raise Exception(f'Cannot save JSON {path} {exc}') from exc
 
@@ -138,7 +141,7 @@ def is_yaml_file(path):
     """
     try:
         if os.path.isfile(path):
-            with open(path) as yamlfile:
+            with open(path, encoding='utf-8') as yamlfile:
                 if yaml.safe_load(yamlfile):
                     return True
         return False
@@ -156,8 +159,12 @@ def get_tap_target_names(yaml_dir):
         (tap_yamls, target_yamls): tap_yamls is a list of names inside yaml_dir with "tap_*.y(a)ml" pattern.
                                    target_yamls is a list of names inside yaml_dir with "target_*.y(a)ml" pattern.
     """
-    yamls = [f for f in os.listdir(yaml_dir) if os.path.isfile(os.path.join(yaml_dir, f))
-             and (f.endswith('.yml') or f.endswith('.yaml'))]
+    yamls = [
+        f
+        for f in os.listdir(yaml_dir)
+        if os.path.isfile(os.path.join(yaml_dir, f))
+        and (f.endswith('.yml') or f.endswith('.yaml'))
+    ]
     target_yamls = set(filter(lambda y: y.startswith('target_'), yamls))
     tap_yamls = set(filter(lambda y: y.startswith('tap_'), yamls))
 
@@ -182,7 +189,7 @@ def load_yaml(yaml_file, vault_secret=None):
 
     data = None
     if os.path.isfile(yaml_file):
-        with open(yaml_file, 'r') as stream:
+        with open(yaml_file, 'r', encoding='utf-8') as stream:
             # Render environment variables using jinja templates
             contents = stream.read()
             template = Template(contents)
@@ -190,19 +197,26 @@ def load_yaml(yaml_file, vault_secret=None):
             try:
                 if is_encrypted_file(stream):
                     file_data = stream.read()
-                    data = yaml.load(vault.decrypt(file_data, None))
+                    data = yaml.safe_load(vault.decrypt(file_data, None))
                 else:
                     loader = AnsibleLoader(stream, None, vault.secrets)
                     try:
                         data = loader.get_single_data()
                     except Exception as exc:
-                        raise Exception(f'Error when loading YAML config at {yaml_file} {exc}') from exc
+                        raise Exception(
+                            f'Error when loading YAML config at {yaml_file} {exc}'
+                        ) from exc
                     finally:
                         loader.dispose()
             except yaml.YAMLError as exc:
-                raise Exception(f'Error when loading YAML config at {yaml_file} {exc}') from exc
+                raise Exception(
+                    f'Error when loading YAML config at {yaml_file} {exc}'
+                ) from exc
     else:
         LOGGER.debug('No file at %s', yaml_file)
+
+    if isinstance(data, AnsibleMapping):
+        data = dict(data)
 
     return data
 
@@ -264,7 +278,9 @@ def get_sample_file_paths():
     Get list of every available sample files (YAML, etc.) with absolute paths
     """
     samples_dir = os.path.join(os.path.dirname(__file__), 'samples')
-    return search_files(samples_dir, patterns=['config.yml', '*.yml.sample', 'README.md'], abs_path=True)
+    return search_files(
+        samples_dir, patterns=['config.yml', '*.yml.sample', 'README.md'], abs_path=True
+    )
 
 
 def validate(instance, schema):
@@ -275,9 +291,8 @@ def validate(instance, schema):
         # Serialise vault encrypted objects to string
         schema_safe_inst = json.loads(json.dumps(instance, cls=AnsibleJSONEncoder))
         jsonschema.validate(instance=schema_safe_inst, schema=schema)
-    except jsonschema.exceptions.ValidationError as exc:
-        LOGGER.critical('Invalid object %s', exc)
-        sys.exit(1)
+    except jsonschema.exceptions.ValidationError as ex:
+        raise InvalidConfigException(f'json object doesn\'t match schema {schema}') from ex
 
 
 def delete_empty_keys(dic):
@@ -295,18 +310,25 @@ def delete_keys_from_dict(dic, keys):
         return dic
     if isinstance(dic, list):
         return [v for v in (delete_keys_from_dict(v, keys) for v in dic) if v]
-    return {k: v for k, v in ((k, delete_keys_from_dict(v, keys)) for k, v in dic.items()) if k not in keys}
+    # pylint: disable=C0325  # False positive on tuples
+    return {
+        k: v
+        for k, v in ((k, delete_keys_from_dict(v, keys)) for k, v in dic.items())
+        if k not in keys
+    }
 
 
 def silentremove(path):
     """
-    Deleting file with no error message if the file not exists
+    Deleting file/folder with no error message if it doesn't exist
     """
-    LOGGER.debug('Removing file at %s', path)
+    LOGGER.debug('Removing folder/file at %s', path)
     try:
-        os.remove(path)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
     except OSError as exc:
-
         # errno.ENOENT = no such file or directory
         if exc.errno != errno.ENOENT:
             raise
@@ -323,7 +345,9 @@ def search_files(search_dir, patterns=None, sort=False, abs_path=False):
         # Search files and sort if required
         p_files = []
         for pattern in patterns:
-            p_files.extend(filter(os.path.isfile, glob.glob(os.path.join(search_dir, pattern))))
+            p_files.extend(
+                filter(os.path.isfile, glob.glob(os.path.join(search_dir, pattern)))
+            )
         if sort:
             p_files.sort(key=os.path.getmtime, reverse=True)
 
@@ -364,7 +388,7 @@ def extract_log_attributes(log_file):
         'tap_id': tap_id,
         'timestamp': timestamp,
         'sync_engine': sync_engine,
-        'status': status
+        'status': status,
     }
 
 
@@ -408,10 +432,11 @@ def get_tap_stream_id(tap, database_name, schema_name, table_name):
     """
     pattern = get_tap_property(tap, 'tap_stream_id_pattern')
 
-    return pattern \
-        .replace('{{database_name}}', f'{database_name}') \
-        .replace('{{schema_name}}', f'{schema_name}') \
+    return (
+        pattern.replace('{{database_name}}', f'{database_name}')
+        .replace('{{schema_name}}', f'{schema_name}')
         .replace('{{table_name}}', f'{table_name}')
+    )
 
 
 def get_tap_stream_name(tap, database_name, schema_name, table_name):
@@ -424,10 +449,11 @@ def get_tap_stream_name(tap, database_name, schema_name, table_name):
     """
     pattern = get_tap_property(tap, 'tap_stream_name_pattern')
 
-    return pattern \
-        .replace('{{database_name}}', f'{database_name}') \
-        .replace('{{schema_name}}', f'{schema_name}') \
+    return (
+        pattern.replace('{{database_name}}', f'{database_name}')
+        .replace('{{schema_name}}', f'{schema_name}')
         .replace('{{table_name}}', f'{table_name}')
+    )
 
 
 def get_tap_default_replication_method(tap):
@@ -446,6 +472,15 @@ def get_fastsync_bin(venv_dir, tap_type, target_type):
     fastsync_name = f'{source}-to-{target}'
 
     return os.path.join(venv_dir, 'pipelinewise', 'bin', fastsync_name)
+
+
+def get_partialsync_bin(venv_dir, tap_type, target_type):
+    """Get the absolute path of partial sync table executable"""
+    source = tap_type.replace('tap-', '')
+    target = target_type.replace('target-', '')
+    partialsync_name = f'partial-{source}-to-{target}'
+
+    return os.path.join(venv_dir, 'pipelinewise', 'bin', partialsync_name)
 
 
 def get_pipelinewise_python_bin(venv_dir: str) -> str:
@@ -494,7 +529,8 @@ def find_errors_in_log_file(file, max_errors=10, error_pattern=None):
         r'botocore\.exceptions\.|'
         # Generic python exceptions
         r'\.[E|e]xception|'
-        r'\.[E|e]rror')
+        r'\.[E|e]rror'
+    )
 
     # Use known error patterns by default
     if not error_pattern:
@@ -502,7 +538,7 @@ def find_errors_in_log_file(file, max_errors=10, error_pattern=None):
 
     errors = []
     if file and os.path.isfile(file):
-        with open(file) as file_object:
+        with open(file, encoding='utf-8') as file_object:
             for line in file_object:
                 if len(re.findall(error_pattern, line)) > 0:
                     errors.append(line)
@@ -529,5 +565,19 @@ def generate_random_string(length: int = 8) -> str:
     if 0 < length < 8:
         warnings.warn('Length is too small! consider 8 or more characters')
 
-    return ''.join(secrets.choice(string.ascii_uppercase + string.digits)
-                   for _ in range(length))
+    return ''.join(
+        secrets.choice(string.ascii_uppercase + string.digits) for _ in range(length)
+    )
+
+
+def create_backup_of_the_file(original_file_path: str) -> None:
+    """
+    create a backup of the input file in the same directory
+    Args:
+        original_file_path: the original file path to make a back up of it.
+    """
+    try:
+        shutil.copy(original_file_path, f'{original_file_path}.bak')
+    except FileNotFoundError:
+        with open(f'{original_file_path}.bak', 'w', encoding='utf-8') as tmp_file:
+            tmp_file.write('ORIGINAL FILE DID NOT EXIST!')

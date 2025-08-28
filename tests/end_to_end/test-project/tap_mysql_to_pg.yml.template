@@ -18,7 +18,8 @@ db_conn:
   user: "${TAP_MYSQL_USER}"             # MySQL user
   password: "${TAP_MYSQL_PASSWORD}"     # Plain string or vault encrypted
   dbname: "${TAP_MYSQL_DB}"             # MySQL database name
-
+  use_gtid: true
+  engine: mariadb
 
 # ------------------------------------------------------------------------------
 # Destination (Target) - Target properties
@@ -100,3 +101,13 @@ schemas:
       ### Table with all possible data types
       - table_name: "all_datatypes"
         replication_method: "LOG_BASED"
+
+      ### Table with LOG_BASED replication
+      - table_name: "customers"
+        replication_method: "LOG_BASED"
+        transformations:
+          - column: "phone"
+            type: "MASK-STRING-SKIP-ENDS-2"
+
+          - column: "email"
+            type: "MASK-STRING-SKIP-ENDS-6"

@@ -8,15 +8,15 @@ import snowflake.connector
 
 from pymongo.database import Database
 
+from pipelinewise.utils import pem2der
+
 # pylint: disable=too-many-arguments
 def run_query_postgres(query, host, port, user, password, database):
     """Run and SQL query in a postgres database"""
     result_rows = []
-    with psycopg2.connect(host=host,
-                          port=port,
-                          user=user,
-                          password=password,
-                          database=database) as conn:
+    with psycopg2.connect(
+        host=host, port=port, user=user, password=password, database=database
+    ) as conn:
         conn.set_session(autocommit=True)
         with conn.cursor() as cur:
             cur.execute(query)
@@ -28,38 +28,39 @@ def run_query_postgres(query, host, port, user, password, database):
 def run_query_mysql(query, host, port, user, password, database):
     """Run and SQL query in a mysql database"""
     result_rows = []
-    with pymysql.connect(host=host,
-                         port=port,
-                         user=user,
-                         password=password,
-                         database=database,
-                         charset='utf8mb4',
-                         cursorclass=pymysql.cursors.Cursor) as cur:
+    with pymysql.connect(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.Cursor,
+        ssl={'': True}
+    ) as cur:
         cur.execute(query)
         if cur.rowcount > 0:
             result_rows = cur.fetchall()
     return result_rows
 
 
-def run_query_snowflake(query, account, database, warehouse, user, password):
+def run_query_snowflake(query, account, database, warehouse, user, private_key):
     """Run and SQL query in a snowflake database"""
     result_rows = []
-    with snowflake.connector.connect(account=account,
-                                     database=database,
-                                     warehouse=warehouse,
-                                     user=user,
-                                     password=password,
-                                     autocommit=True) as conn:
+    with snowflake.connector.connect(
+        account=account,
+        database=database,
+        warehouse=warehouse,
+        user=user,
+        private_key=pem2der(private_key),
+        autocommit=True,
+        authenticator='SNOWFLAKE_JWT'
+    ) as conn:
         with conn.cursor() as cur:
             cur.execute(query)
             if cur.rowcount > 0:
                 result_rows = cur.fetchall()
     return result_rows
-
-
-def run_query_redshift(query, host, port, user, password, database):
-    """Redshift is compatible with postgres"""
-    return run_query_postgres(query, host, port, user, password, database)
 
 
 def sql_get_columns_for_table(table_schema: str, table_name: str) -> list:
@@ -114,35 +115,6 @@ def sql_get_columns_snowflake(schemas: list) -> str:
     WHERE table_schema IN ({sql_schemas})
     GROUP BY table_name
     ORDER BY table_name"""
-
-
-def sql_get_columns_redshift(schemas: list) -> str:
-    """Generates an SQL command that gives the list of columns of every table
-    in a specific schema from a Redshift database"""
-    sql_schemas = ', '.join(f"'{schema}'" for schema in schemas)
-    return f"""
-    SELECT table_name, LISTAGG(CONCAT(column_name, '::'), ';') WITHIN GROUP (ORDER BY column_name)
-    FROM (
-        SELECT
-            TRIM(c.relname) table_name, a.attname column_name
-        FROM
-            pg_type t,
-            pg_attribute a,
-            pg_class c,
-            pg_namespace ns,
-            (SELECT TOP 1 1 FROM ppw_e2e_helper.dual)
-        WHERE
-                t.oid=a.atttypid
-          AND a.attrelid = c.oid
-          AND c.relnamespace = ns.oid
-          AND t.typname NOT IN ('oid','xid','tid','cid')
-          AND a.attname not in ('deletexid', 'insertxid')
-          AND c.reltype != 0
-          AND ns.nspname IN ({sql_schemas})
-        )
-    GROUP BY table_name
-    ORDER BY table_name
-    """
 
 
 def sql_dynamic_row_count_mysql(schemas: list) -> str:
@@ -220,22 +192,24 @@ def sql_dynamic_row_count_redshift(schemas: list) -> str:
              ' UNION ') WITHIN GROUP ( ORDER BY tablename )
            || 'ORDER BY tbl'
       FROM table_list
-    """
+    """  # noqa: E501
 
 
-def get_mongodb_connection(host: str,
-                           port: Union[str, int],
-                           user: str,
-                           password: str,
-                           database: str,
-                           auth_database: str)->Database:
+def get_mongodb_connection(
+    host: str,
+    port: Union[str, int],
+    user: str,
+    password: str,
+    database: str,
+    auth_database: str,
+) -> Database:
     """
     Creates a mongoDB connection to the db to sync from
     Returns: Database instance with established connection
 
     """
-    return pymongo.MongoClient(host=host,
-                               port=int(port),
-                               username=user,
-                               password=password,
-                               authSource=auth_database)[database]
+    connection_string = (
+        f'mongodb://{user}:{password}@{host}:{port}/{database}?authSource={auth_database}'
+        '&tls=true&tlsAllowInvalidCertificates=true&directConnection=true'
+    )
+    return pymongo.MongoClient(connection_string)[database]

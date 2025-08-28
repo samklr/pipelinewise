@@ -15,6 +15,8 @@ owner: "test-runner"
 db_conn:
   host: "${TAP_MONGODB_HOST}"               	# Mongodb host
   port: ${TAP_MONGODB_PORT}                     # Mongodb port
+  ssl: "true"                           # Mongodb SSL enabled
+  verify_mode: "false"                  # Mongodb SSL verify mode
   user: "${TAP_MONGODB_USER}"                  	# Mongodb user
   password: "${TAP_MONGODB_PASSWORD}"           # Mongodb plain string or vault encrypted
   auth_database: "admin"            			# Mongodb database to authenticate on
@@ -37,10 +39,13 @@ stream_buffer_size: 0                  # In-memory buffer size (MB) between taps
 # ------------------------------------------------------------------------------
 schemas:
   - source_schema: "${TAP_MONGODB_DB}"
-    target_schema: "ppw_e2e_tap_mongodb"
+    target_schema: "ppw_e2e_tap_mongodb${TARGET_SNOWFLAKE_SCHEMA_POSTFIX}"
 
     tables:
       - table_name: "listings"
 
       - table_name: "my_collection"
+        replication_method: "LOG_BASED"
+
+      - table_name: "all_datatypes"
         replication_method: "LOG_BASED"

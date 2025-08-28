@@ -15,6 +15,8 @@ owner: "test-runner"
 db_conn:
   host: "db_mongo_source"               # Mongodb host
   port: 27017                           # Mongodb port
+  ssl: "true"                           # Mongodb SSL enabled
+  verify_mode: "false"                  # Mongodb SSL verify mode
   user: "pipelinewise"                  # Mongodb user
   password: "secret"                    # Mongodb plain string or vault encrypted
   auth_database: "admin"            # Mongodb database to authenticate on
@@ -41,4 +43,7 @@ schemas:
         replication_method: "FULL_TABLE"
 
       - table_name: "my_collection"
+        replication_method: "LOG_BASED"
+
+      - table_name: "all_datatypes"
         replication_method: "LOG_BASED"

@@ -28,18 +28,18 @@ REQUIRED_CONFIG_KEYS = {
         'account',
         'dbname',
         'user',
-        'password',
+        'private_key',
         'warehouse',
         's3_bucket',
         'stage',
-        'file_format'
-    ]
+        'file_format',
+    ],
 }
 
 LOCK = multiprocessing.Lock()
 
 
-def tap_type_to_target_type(mongo_type):
+def tap_type_to_target_type(mongo_type, *_):
     """Data type mapping from MongoDB to Snowflake"""
     return {
         'string': 'TEXT',
@@ -56,10 +56,12 @@ def sync_table(table: str, args: Namespace) -> Union[bool, str]:
     """Sync one table"""
     mongodb = FastSyncTapMongoDB(args.tap, tap_type_to_target_type)
     snowflake = FastSyncTargetSnowflake(args.target, args.transform)
+    tap_id = args.target.get('tap_id')
+    archive_load_files = args.target.get('archive_load_files', False)
 
     try:
         dbname = args.tap.get('dbname')
-        filename = utils.gen_export_filename(tap_id=args.target.get('tap_id'), table=table)
+        filename = utils.gen_export_filename(tap_id=tap_id, table=table)
         filepath = os.path.join(args.temp_dir, filename)
         target_schema = utils.get_target_schema(args.target, table)
 
@@ -67,7 +69,9 @@ def sync_table(table: str, args: Namespace) -> Union[bool, str]:
         mongodb.open_connection()
 
         # Get bookmark - LSN position or Incremental Key value
-        bookmark = utils.get_bookmark_for_table(table, args.properties, mongodb, dbname=dbname)
+        bookmark = utils.get_bookmark_for_table(
+            table, args.properties, mongodb, dbname=dbname
+        )
 
         # Exporting table data, get table definitions and close connection to avoid timeouts
         mongodb.copy_table(table, filepath, args.temp_dir)
@@ -83,10 +87,26 @@ def sync_table(table: str, args: Namespace) -> Union[bool, str]:
 
         # Creating temp table in Snowflake
         snowflake.create_schema(target_schema)
-        snowflake.create_table(target_schema, table, snowflake_columns, primary_key, is_temporary=True)
+        snowflake.create_table(
+            target_schema, table, snowflake_columns, primary_key, is_temporary=True
+        )
 
         # Load into Snowflake table
-        snowflake.copy_to_table(s3_key, target_schema, table, size_bytes, is_temporary=True, skip_csv_header=True)
+        snowflake.copy_to_table(
+            s3_key,
+            target_schema,
+            table,
+            size_bytes,
+            is_temporary=True,
+            skip_csv_header=True,
+        )
+
+        if archive_load_files:
+            # Copy load file to archive
+            snowflake.copy_to_archive(s3_key, tap_id, table)
+
+        # Delete file from s3
+        snowflake.s3.delete_object(Bucket=args.target.get('s3_bucket'), Key=s3_key)
 
         # Obfuscate columns
         snowflake.obfuscate_columns(target_schema, table)
@@ -123,7 +143,8 @@ def main_impl():
     table_sync_excs = []
 
     # Log start info
-    LOGGER.info("""
+    LOGGER.info(
+        """
         -------------------------------------------------------
         STARTING SYNC
         -------------------------------------------------------
@@ -131,16 +152,25 @@ def main_impl():
             Total tables selected to sync  : %s
             Pool size                      : %s
         -------------------------------------------------------
-        """, args.tables, len(args.tables), pool_size)
+        """,
+        args.tables,
+        len(args.tables),
+        pool_size,
+    )
 
     # Start loading tables in parallel in spawning processes
     with multiprocessing.Pool(pool_size) as proc:
         table_sync_excs = list(
-            filter(lambda x: not isinstance(x, bool), proc.map(partial(sync_table, args=args), args.tables)))
+            filter(
+                lambda x: not isinstance(x, bool),
+                proc.map(partial(sync_table, args=args), args.tables),
+            )
+        )
 
     # Log summary
     end_time = datetime.now()
-    LOGGER.info("""
+    LOGGER.info(
+        """
         -------------------------------------------------------
         SYNC FINISHED - SUMMARY
         -------------------------------------------------------
@@ -151,8 +181,13 @@ def main_impl():
             Pool size                      : %s
             Runtime                        : %s
         -------------------------------------------------------
-        """, len(args.tables), len(args.tables) - len(table_sync_excs), str(table_sync_excs),
-                pool_size, end_time - start_time)
+        """,
+        len(args.tables),
+        len(args.tables) - len(table_sync_excs),
+        str(table_sync_excs),
+        pool_size,
+        end_time - start_time,
+    )
 
     if len(table_sync_excs) > 0:
         sys.exit(1)

@@ -1,33 +1,55 @@
 #!/usr/bin/env bash
 
-# Install OS dependencies
-apt-get update
-apt-get install -y mariadb-client postgresql-client alien libaio1 mongo-tools mbuffer gettext-base
+set -e
 
-wget https://repo.mongodb.org/apt/ubuntu/dists/bionic/mongodb-org/4.2/multiverse/binary-amd64/mongodb-org-shell_4.2.7_amd64.deb
-dpkg -i ./mongodb-org-shell_4.2.7_amd64.deb && rm mongodb-org-shell_4.2.7_amd64.deb
+apt update
 
-# Change to dev-project folder
-cd dev-project
+rm -f /usr/bin/python3
+ln -s /usr/bin/python3.8 /usr/bin/python3
 
-# Install Oracle Instant Client required for tap-oracle
-# ORA_INSTACLIENT_URL=https://download.oracle.com/otn_software/linux/instantclient/193000/oracle-instantclient19.3-basiclite-19.3.0.0.0-1.x86_64.rpm
-# wget -O oracle-instantclient.rpm ${ORA_INSTACLIENT_URL}
-# echo "Installing Oracle Instant Client for tap-oracle..."
-# alien -i oracle-instantclient.rpm --scripts
-# rm -f oracle-instantclient.rpm
+apt install -y software-properties-common python3-apt
+add-apt-repository ppa:deadsnakes/ppa
+apt update
 
-# Build test databasese
-../tests/db/tap_mysql_db.sh
-../tests/db/tap_postgres_db.sh
 
-./mongo/init_rs.sh
-../tests/db/tap_mongodb.sh
+DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get -y install tzdata
 
-../tests/db/target_postgres.sh
+apt install -y --no-install-recommends \
+  wget \
+  gnupg \
+  git \
+  alien \
+  gettext-base \
+  libaio1 \
+  mariadb-client \
+  mbuffer \
+  postgresql-client \
+  python3.10 python3-pip python3.10-venv python3.10-dev
 
-# Install PipelineWise in the container
-../install.sh --acceptlicenses --nousage --connectors=target-snowflake,target-postgres,tap-mysql,tap-postgres,tap-mongodb,transform-field,tap-s3-csv
+rm /usr/bin/python3
+ln -s /usr/bin/python3.10 /usr/bin/python3
+
+apt upgrade -y
+# rm -rf /var/lib/apt/lists/* \
+
+# Do a bunch of Mongo things
+wget -q --no-check-certificate https://downloads.mongodb.com/compass/mongodb-mongosh_2.2.9_amd64.deb
+apt install ./mongodb-mongosh_2.2.9_amd64.deb
+rm -f mongodb-mongosh_2.2.9_amd64.deb
+wget -q --no-check-certificate https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2004-x86_64-100.9.5.deb
+apt install ./mongodb-database-tools-ubuntu2004-x86_64-100.9.5.deb
+rm -f mongodb-database-tools-ubuntu2004-x86_64-100.9.5.deb
+
+dev-project/mongo/initiate-replica-set.sh
+
+# Build test databases
+tests/db/tap_mysql_db.sh
+tests/db/tap_postgres_db.sh
+tests/db/tap_mongodb.sh
+tests/db/target_postgres.sh
+
+# Install PipelineWise and connectors in the container
+make pipelinewise connectors -e pw_acceptlicenses=y -e pw_connector=target-snowflake,target-postgres,tap-mysql,tap-postgres,tap-mongodb,transform-field,tap-s3-csv
 if [[ $? != 0 ]]; then
     echo
     echo "ERROR: Docker container not started. Failed to install one or more PipelineWise components."

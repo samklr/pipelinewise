@@ -52,7 +52,7 @@ Maatjies', 20, 'A', null, '09:16:10'),
   (8,'Liewe	Maatjies', 10, null, '[{"key": "Value''s One", "actions": []},{"key": "Value\U00000027s Two", "actions": ' ||
                                  '[]}]', '00:30:00'),
   (9, 'dolor sit amet', 19, 'C', '[]', '23:50:19'),
-  (10, 'sit amet', 100, 'E', '', '19:30:19')
+  (10, 'sit amet', 100, 'E', null, '19:30:19')
 ;
 
 /*!40000 ALTER TABLE `edgydata` ENABLE KEYS */;
@@ -1608,7 +1608,7 @@ DROP TABLE IF EXISTS `all_datatypes`;
 CREATE TABLE `all_datatypes` (
     c_char                  CHAR        PRIMARY KEY,
     c_varchar               VARCHAR(100),
-    c_binary                BINARY,
+    c_binary                BINARY(6),
     c_varbinary             VARBINARY(100),
     c_blob                  BLOB,
     c_tinyblob              TINYBLOB,
@@ -1732,6 +1732,44 @@ VALUES ('x',
 /*!40000 ALTER TABLE `all_datatypes` ENABLE KEYS */;
 UNLOCK TABLES;
 
+
+--
+-- Table structure for table `customers`
+--
+
+DROP TABLE IF EXISTS `customers`;
+CREATE TABLE `customers` (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  phone VARCHAR(100),
+  email TEXT
+)
+ENGINE=MyISAM AUTO_INCREMENT=0 DEFAULT CHARSET=utf8;
+
+LOCK TABLES `customers` WRITE;
+/*!40000 ALTER TABLE `customers` DISABLE KEYS */;
+INSERT INTO customers (name, phone, email) VALUES ('Martelle Cristoforetti', '2071506307', 'mcristoforetti0@accuweather.com'),
+	('Joelynn Cawthorne', '9764917766', 'jcawthorne1@bizjournals.com'),
+	('Gerrie Gillie', '7907324372', 'ggillie2@acquirethisname.com'),
+	('Sheilakathryn Muge', '7195638381', 'smuge3@umn.edu'),
+	('Fedora Mellanby', '4842466494', 'fmellanby4@fema.gov'),
+	('Dall Goodbourn', '4977729268', 'dgoodbourn5@dailymail.co.uk'),
+	('Helaina Van Halen', '5148995067', 'hvan6@hp.com'),
+	('Noelle Knight', NULL, 'nknight7@google.co.uk'),
+	('Anetta Doodney', '4669478802', 'adoodney8@1688.com'),
+	('Almira Clinch', '2235449869', 'aclinch9@netvibes.com'),
+	('Aidan Bachnic', '8479230171', 'abachnica@msu.edu'),
+	('Biddy Shirt', '8109841957', 'bshirtb@nps.gov'),
+	('Robinson Matuszinski', '7587994157', 'rmatuszinskic@ed.gov'),
+	('Pall Porcher', '2719539572', 'pporcherd@thetimes.co.uk'),
+	('Briggs Fyall', '5431890133', 'bfyalle@a8.net'),
+	('Shara Eversfield', '1796055914', 'seversfieldf@prlog.org'),
+	('Abbot Scowcraft', '1658501516', 'ascowcraftg@shutterfly.com'),
+	('Ransell Fardo', '9584912534', 'rfardoh@de.vu'),
+	('Leonard Buche', '9391842560', 'lbuchei@netscape.com'),
+	('Xylia Adnet', '6784481146', 'xadnetj@auda.org.au');
+/*!40000 ALTER TABLE `customers` ENABLE KEYS */;
+UNLOCK TABLES;
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

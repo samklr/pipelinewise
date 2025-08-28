@@ -1,4 +1,11 @@
-# PipelineWise
+# Notice
+To better serve Wise business and customer needs, the PipelineWise codebase needs to shrink.
+We have made the difficult decision that, going forward many components of PipelineWise will be removed or incorporated in the main repo.
+The last version before this decision is [v0.64.1](https://github.com/transferwise/pipelinewise/tree/v0.64.1)
+
+We thank all in the open-source community, that over the past 6 years, have helped to make PipelineWise a robust product for heterogeneous replication of many many Terabytes, daily
+
+## PipelineWise
 
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pipelinewise-tap-mysql.svg)](https://pypi.org/project/pipelinewise-tap-mysql/)
 [![License: Apache2](https://img.shields.io/badge/License-Apache2-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -8,6 +15,19 @@ Documentation is available at https://transferwise.github.io/pipelinewise/
 
 ![Logo](docs/img/pipelinewise-diagram-circle-bold.png)
 
+
+## Table of Contents
+
+- [PipelineWise](#pipelinewise)
+  - [Features](#features)
+  - [Official docker images](#official-docker-images)
+  - [Connectors](#connectors)
+    - [Running from docker](#running-from-docker)
+    - [Building from source](#building-from-source)
+  - [Developing with Docker](#developing-with-docker)
+  - [Contribution](#contribution)
+  - [Links](#links)
+  - [License](#license)
 
 ## Features
 
@@ -20,19 +40,14 @@ Documentation is available at https://transferwise.github.io/pipelinewise/
 * **Extensible**: PipelineWise is using [Singer.io](https://www.singer.io/) compatible taps and target connectors. New connectors can be added to PipelineWise with relatively small effort
 
 
-## Table of Contents
+## Official docker images
 
-- [PipelineWise](#pipelinewise)
-  - [Features](#features)
-  - [Table of Contents](#table-of-contents)
-  - [Connectors](#connectors)
-    - [Running from docker](#running-from-docker)
-    - [Building from source](#building-from-source)
-  - [Developing with Docker](#developing-with-docker)
-  - [Contribution](#contribution)
-  - [Links](#links)
-  - [License](#license)
+Pipelinewise images are published to: [dockerhub](https://hub.docker.com/r/transferwiseworkspace/pipelinewise)
 
+Pull image with:
+```shell
+docker pull transferwiseworkspace/pipelinewise:{tag}
+```
 
 ## Connectors
 
@@ -51,11 +66,10 @@ consumes data from taps and do something with it, like load it into a file, API 
 | Tap       | **[Salesforce](https://github.com/singer-io/tap-salesforce)** | | [![PyPI version](https://badge.fury.io/py/tap-salesforce.svg)](https://badge.fury.io/py/tap-salesforce) | Extracts data from Salesforce database using BULK and REST extraction API with Key-Based incremental replications |
 | Tap       | **[Jira](https://github.com/singer-io/tap-jira)** | | [![PyPI version](https://badge.fury.io/py/tap-jira.svg)](https://badge.fury.io/py/tap-jira) | Extracts data from Atlassian Jira using Base auth or OAuth credentials |
 | Tap       | **[MongoDB](https://github.com/transferwise/pipelinewise-tap-mongodb)** | | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-mongodb.svg)](https://badge.fury.io/py/pipelinewise-tap-mongodb) | Extracts data from MongoDB databases. Supporting Log-Based and Full Table replications |
-| Tap       | **[AdWords](https://github.com/singer-io/tap-adwords)** | Extra | [![PyPI version](https://badge.fury.io/py/tap-adwords.svg)](https://badge.fury.io/py/tap-adwords) | Extracts data Google Ads API (former Google Adwords) using OAuth and support incremental loading based on input state |
 | Tap       | **[Google Analytics](https://github.com/transferwise/pipelinewise-tap-google-analytics)** | Extra | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-google-analytics.svg)](https://badge.fury.io/py/tap-adwords) | Extracts data from Google Analytics |
 | Tap       | **[Oracle](https://github.com/transferwise/pipelinewise-tap-oracle)** | Extra | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-oracle.svg)](https://badge.fury.io/py/pipelinewise-tap-oracle) | Extracts data from Oracle databases. Supporting Log-Based, Key-Based Incremental and Full Table replications |
 | Tap       | **[Zuora](https://github.com/transferwise/pipelinewise-tap-zuora)** | Extra | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-zuora.svg)](https://badge.fury.io/py/pipelinewise-tap-zuora) | Extracts data from Zuora database using AQAA and REST extraction API with Key-Based incremental replications |
-| Tap       | **[GitHub](https://github.com/singer-io/tap-github)** |       | [![PyPI version](https://badge.fury.io/py/tap-github.svg)](https://badge.fury.io/py/tap-github) | Extracts data from GitHub API using Personal Access Token and Key-Based incremental replications |
+| Tap       | **[GitHub](https://github.com/transferwise/pipelinewise-tap-github)** |       | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-github.svg)](https://badge.fury.io/py/pipelinewise-tap-github) | Extracts data from GitHub API using Personal Access Token and Key-Based incremental replications |
 | Tap       | **[Shopify](https://github.com/singer-io/tap-shopify)** | Extra | [![PyPI version](https://badge.fury.io/py/tap-shopify.svg)](https://badge.fury.io/py/tap-shopify) | Extracts data from Shopify API using Personal App API Password and date based incremental replications |
 | Tap       | **[Slack](https://github.com/transferwise/pipelinewise-tap-slack)** |       | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-slack.svg)](https://badge.fury.io/py/pipelinewise-tap-slack) | Extracts data from a Slack API using Bot User Token and Key-Based incremental replications |
 | Tap       | **[Mixpanel](https://github.com/transferwise/pipelinewise-tap-mixpanel)** |       | [![PyPI version](https://badge.fury.io/py/pipelinewise-tap-mixpanel.svg)](https://badge.fury.io/py/pipelinewise-tap-mixpanel) | Extracts data from the Mixpanel API. |
@@ -68,12 +82,21 @@ consumes data from taps and do something with it, like load it into a file, API 
 
 **Note**: Extra connectors are experimental connectors and written by community contributors. These connectors are not maintained regularly and not installed by default. To install the extra packages use the `--connectors=all` option when installing PipelineWise.
 
-
 ### Running from docker
 
 If you have [Docker](https://www.docker.com/) installed then using docker is the recommended and easiest method to start using PipelineWise.
 
-1. Build an executable docker image that has every required dependency and is isolated from your host system. 
+#### Use official image
+
+PipelineWise images are built on each release and available on [Dockerhub](https://hub.docker.com/r/transferwiseworkspace/pipelinewise)
+
+    ```sh
+    $ docker pull transferwiseworkspace/pipelinewise
+    ```
+
+#### Build your own docker image
+
+1. Build an executable docker image that has every required dependency and is isolated from your host system.
 
 By default, the image will build with *all* connectors. In order to keep image size small, we strongly recommend you change it to just the connectors you need by supplying the `--build-arg` command:
 
@@ -113,13 +136,21 @@ You can run any pipelinewise command at this point. Tutorials to create and run 
     * mongo-tools
     * mbuffer
 
-2. Run the install script that installs the PipelineWise CLI and all supported singer connectors into separate virtual environments:
+2. Run the Makefile that installs the PipelineWise CLI and all supported singer connectors into separate virtual environments:
 
-    ```sh
-    $ ./install.sh --connectors=all
+    ```shell
+    $ make pipelinewise  all_connectors
     ```
-    Press `Y` to accept the license agreement of the required singer components. To automate the installation and accept every license agreement run `./install --acceptlicenses`
-    Use the optional `--connectors=...,...` argument to install only a specific list of singer connectors.
+    Press `Y` to accept the license agreement of the required singer components. To automate the installation and accept every license agreement run:
+    ```shell
+    $ make pipelinewise all_connectors -e pw_acceptlicenses=y
+    ```
+    And to install only a specific list of singer connectors:
+    ```shell
+    $ make connectors -e pw_connector=<connector_1>,<connector_2>
+    ```
+
+   Run `make` or `make -h` to see the help for Makefile and all options.
 
 3. To start the CLI you need to activate the CLI virtual environment and set `PIPELINEWISE_HOME` environment variable:
 
@@ -127,7 +158,7 @@ You can run any pipelinewise command at this point. Tutorials to create and run 
     $ source {ACTUAL_ABSOLUTE_PATH}/.virtualenvs/pipelinewise/bin/activate
     $ export PIPELINEWISE_HOME={ACTUAL_ABSOLUTE_PATH}
     ```
-    (The `ACTUAL_ABSOLUTE_PATH` differs on every system, the install script prints the correct commands once the installation completes)
+    (The `ACTUAL_ABSOLUTE_PATH` differs on every system, running `make -h` prints the correct commands for CLI)
 
 4. Check if the installation was successful by running the `pipelinewise status` command:
 

@@ -6,9 +6,11 @@ Tap S3 CSV
 
 
 Extracting data from S3 in CSV file format is straightforward. You need to have
-access to an S3 bucket and the tap will download every file that matches the
+access to an S3 bucket and the tap will download every CSV file that matches the
 configured file pattern. It's tracking the ``Last-Modified`` timestamp on the
 S3 objects to incrementally download only the new or updated files.
+
+.. note:: Every column in the csv files will be interpreted as string.
 
 .. warning::
 
@@ -50,6 +52,7 @@ Example YAML for ``tap-s3-csv``:
     type: "tap-s3-csv"                     # !! THIS SHOULD NOT CHANGE !!
     owner: "somebody@foo.com"              # Data owner to contact
     #send_alert: False                     # Optional: Disable all configured alerts on this tap
+    #slack_alert_channel: "#tap-channel"   # Optional: Sending a copy of specific tap alerts to this slack channel
 
 
     # ------------------------------------------------------------------------------
@@ -92,6 +95,11 @@ Example YAML for ``tap-s3-csv``:
                                               #            duplicates. Always try selecting
                                               #            a reasonable key from the CSV file
     #batch_wait_limit_seconds: 3600           # Optional: Maximum time to wait for `batch_size_rows`. Available only for snowflake target.
+
+    # Options only for Snowflake target
+    #archive_load_files: False                      # Optional: when enabled, the files loaded to Snowflake will also be stored in `archive_load_files_s3_bucket`
+    #archive_load_files_s3_prefix: "archive"        # Optional: When `archive_load_files` is enabled, the archived files will be placed in the archive S3 bucket under this prefix.
+    #archive_load_files_s3_bucket: "<BUCKET_NAME>"  # Optional: When `archive_load_files` is enabled, the archived files will be placed in this bucket. (Default: the value of `s3_bucket` in target snowflake YAML)
 
 
     # ------------------------------------------------------------------------------

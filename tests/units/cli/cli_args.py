@@ -7,21 +7,26 @@ CLI Arguments Class for unit tests
 class CliArgs:
     """Class to simulate argparse command line arguments required by PipelineWise class"""
 
-    def __init__(self,
-                 target='*',
-                 tap='*',
-                 tables=None,
-                 dir='*',
-                 name='*',
-                 secret=None,
-                 string=None,
-                 log='*',
-                 extra_log=False,
-                 debug=False,
-                 profiler=False
-                 ):
+    def __init__(
+        self,
+        target='*',
+        tap='*',
+        taps='*',
+        tables=None,
+        dir='*',
+        name='*',
+        secret=None,
+        string=None,
+        log='*',
+        extra_log=False,
+        debug=False,
+        profiler=False,
+        force=False,
+        replication_method_only='*'
+    ):
         self.target = target
         self.tap = tap
+        self.taps = taps
         self.tables = tables
         self.dir = dir
         self.name = name
@@ -31,6 +36,8 @@ class CliArgs:
         self.extra_log = extra_log
         self.debug = debug
         self.profiler = profiler
+        self.force = force
+        self.replication_method_only = replication_method_only
 
     # "log" Getters and setters
     @property
